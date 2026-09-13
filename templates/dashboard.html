@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Network Monitor Dashboard</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="wrap">
+    <header>
+      <div><p class="eyebrow">OPERATIONS / LIVE STATUS</p><h1>Network Monitor</h1></div>
+      <div class="live"><span></span> Auto refresh: 5s</div>
+    </header>
+
+    <section class="kpis">
+      <article><p>Total devices</p><strong id="total">–</strong></article>
+      <article><p>Online</p><strong id="online">–</strong></article>
+      <article><p>Warnings</p><strong id="warning">–</strong></article>
+      <article><p>Offline</p><strong id="offline">–</strong></article>
+      <article><p>Avg latency</p><strong><span id="latency">–</span> ms</strong></article>
+    </section>
+
+    <section class="grid">
+      <article class="panel wide">
+        <div class="panel-title"><div><p class="eyebrow">INFRASTRUCTURE</p><h2>Devices</h2></div><small id="updated"></small></div>
+        <div class="table-wrap">
+          <table><thead><tr><th>Device</th><th>IP</th><th>Type</th><th>Status</th><th>Latency</th><th>Uptime</th></tr></thead><tbody id="devices"></tbody></table>
+        </div>
+      </article>
+      <article class="panel">
+        <p class="eyebrow">ATTENTION</p><h2>Active alerts</h2>
+        <div id="alerts" class="alerts"></div>
+      </article>
+    </section>
+  </main>
+<script>
+function badge(status){return `<span class="badge ${status}">${status}</span>`}
+async function refresh(){
+  const [summary, devices, alerts] = await Promise.all([
+    fetch('/api/summary').then(r=>r.json()), fetch('/api/devices').then(r=>r.json()), fetch('/api/alerts').then(r=>r.json())
+  ]);
+  ['total','online','warning','offline'].forEach(k=>document.getElementById(k).textContent=summary[k]);
+  document.getElementById('latency').textContent=summary.avg_latency;
+  document.getElementById('updated').textContent='Updated ' + new Date(summary.checked_at).toLocaleTimeString();
+  document.getElementById('devices').innerHTML=devices.map(d=>`<tr><td><strong>${d.name}</strong></td><td>${d.ip}</td><td>${d.type}</td><td>${badge(d.status)}</td><td>${d.latency===null?'—':d.latency+' ms'}</td><td>${d.uptime}%</td></tr>`).join('');
+  document.getElementById('alerts').innerHTML=alerts.length?alerts.map(a=>`<div class="alert ${a.severity}"><strong>${a.device}</strong><p>${a.message}</p></div>`).join(''):'<p class="muted">No active alerts.</p>';
+}
+refresh(); setInterval(refresh,5000);
+</script>
+</body>
+</html>
